@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
@@ -47,17 +47,17 @@ export const useDemoData = () => {
         // Check if user is on demo plan
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("subscription_plan")
+          .select("*")
           .eq("id", user.id)
           .single();
 
         if (profileError) throw profileError;
 
         // Only initialize demo data for demo plan users
-        if (profile?.subscription_plan !== "demo") return;
+        if (profile?.plan_type !== "demo") return;
 
         // Create demo menu items
-        const menuItemsToInsert = demoMenuItems.map(item => ({
+        const menuItemsToInsert = demoMenuItems.map((item) => ({
           ...item,
           user_id: user.id,
           is_available: true,
@@ -69,26 +69,30 @@ export const useDemoData = () => {
 
         if (menuError) throw menuError;
 
-        // Create demo tables (Mesa 01 to Mesa 10)
-        const demoTables = Array.from({ length: 10 }, (_, i) => ({
-          user_id: user.id,
-          table_number: `${String(i + 1).padStart(2, '0')}`,
-          is_active: true,
-          qr_code_data: `${window.location.origin}/menu/${user.id}/table-${String(i + 1).padStart(2, '0')}`,
-        }));
+          // Create demo tables (Mesa 01 to Mesa 10)
+          const demoTables = Array.from({ length: 10 }, (_, i) => {
+            const tableNumber = `${String(i + 1).padStart(2, "0")}`;
+            return {
+              user_id: user.id,
+              table_number: tableNumber,
+              table_name: `Mesa ${tableNumber}`,
+              is_active: true,
+              qr_code_data: `${window.location.origin}/menu/${user.id}/table-${tableNumber}`,
+            };
+          });
 
-        const { error: tablesError } = await supabase
-          .from("tables")
-          .insert(demoTables);
+          const { error: tablesError } = await supabase
+            .from("tables")
+            .insert(demoTables);
 
-        if (tablesError) throw tablesError;
+          if (tablesError) throw tablesError;
 
-        toast.success("Dados de demonstração criados!", {
-          description: "Explore o cardápio e as mesas de exemplo.",
-        });
-      } catch (error: any) {
-        console.error("Error initializing demo data:", error);
-      }
+          toast.success("Dados de demonstração criados!", {
+            description: "Explore o cardápio e as mesas de exemplo.",
+          });
+        } catch (error) {
+          console.error("Error initializing demo data:", error);
+        }
     };
 
     initializeDemoData();

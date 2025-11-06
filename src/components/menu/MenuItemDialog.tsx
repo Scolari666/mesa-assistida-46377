@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Dialog,
@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2, Upload, X } from "lucide-react";
 import { MenuItem } from "@/pages/MenuManagement";
+import type { MenuItemInsert } from "@/types/supabase";
 
 const formSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório").max(100),
@@ -134,83 +135,86 @@ export function MenuItemDialog({
     return publicUrl;
   };
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!user) return;
+    const onSubmit = async (values: z.infer<typeof formSchema>) => {
+      if (!user) return;
 
-    setUploading(true);
-    try {
-      // Check for duplicate names
-      const { data: existingItems, error: checkError } = await supabase
-        .from("menu_items")
-        .select("id, name")
-        .eq("user_id", user.id)
-        .ilike("name", values.name);
-
-      if (checkError) throw checkError;
-
-      // If editing, exclude the current item from duplicate check
-      const hasDuplicate = editingItem
-        ? existingItems?.some((item) => item.id !== editingItem.id && item.name.toLowerCase() === values.name.toLowerCase())
-        : existingItems?.some((item) => item.name.toLowerCase() === values.name.toLowerCase());
-
-      if (hasDuplicate) {
-        toast.error("Já existe um produto com este nome");
-        form.setError("name", {
-          type: "manual",
-          message: "Já existe um produto com este nome",
-        });
-        setUploading(false);
-        return;
-      }
-
-      let imageUrl = editingItem?.image_url || null;
-
-      // Upload new image if selected
-      if (imageFile) {
-        // Delete old image if exists
-        if (editingItem?.image_url) {
-          const oldImagePath = editingItem.image_url.split("/").pop();
-          if (oldImagePath) {
-            await supabase.storage.from("menu-images").remove([oldImagePath]);
-          }
-        }
-        imageUrl = await uploadImage();
-      }
-
-      const itemData = {
-        name: values.name,
-        description: values.description || null,
-        price: values.price,
-        category: values.category,
-        is_featured: values.is_featured,
-        is_available: values.is_available,
-        image_url: imageUrl,
-        user_id: user.id,
-      };
-
-      if (editingItem) {
-        const { error } = await supabase
+      setUploading(true);
+      try {
+        const { data: existingItem, error: existingItemError } = await supabase
           .from("menu_items")
-          .update(itemData)
-          .eq("id", editingItem.id);
+          .select("id, name")
+          .eq("user_id", user.id)
+          .eq("name", values.name)
+          .neq("id", editingItem?.id ?? "")
+          .maybeSingle();
 
-        if (error) throw error;
-        toast.success("Item atualizado com sucesso!");
-      } else {
-        const { error } = await supabase.from("menu_items").insert([itemData]);
+        if (existingItemError && existingItemError.code !== "PGRST116") {
+          throw existingItemError;
+        }
 
-        if (error) throw error;
-        toast.success("Item adicionado com sucesso!");
+        if (existingItem) {
+          toast.error("Já existe um produto com este nome");
+          form.setError("name", {
+            type: "manual",
+            message: "Já existe um produto com este nome",
+          });
+          setUploading(false);
+          return;
+        }
+
+        let imageUrl = editingItem?.image_url || null;
+
+        if (imageFile) {
+          if (editingItem?.image_url) {
+            const oldImagePath = editingItem.image_url.split("/").pop();
+            if (oldImagePath) {
+              await supabase.storage.from("menu-images").remove([oldImagePath]);
+            }
+          }
+          imageUrl = await uploadImage();
+        }
+
+        const itemData: MenuItemInsert = {
+          name: values.name,
+          description: values.description ?? "",
+          price: values.price,
+          category: values.category,
+          is_featured: values.is_featured,
+          is_available: values.is_available,
+          image_url: imageUrl,
+          user_id: user.id,
+        };
+
+        if (editingItem) {
+          const { error: updateError } = await supabase
+            .from("menu_items")
+            .update(itemData)
+            .eq("id", editingItem.id);
+
+          if (updateError) throw updateError;
+          toast.success("Item atualizado com sucesso!");
+        } else {
+          const { data: newItem, error: insertError } = await supabase
+            .from("menu_items")
+            .insert([itemData])
+            .select()
+            .single();
+
+          if (insertError) throw insertError;
+          if (!newItem) {
+            throw new Error("Falha ao criar item do cardápio");
+          }
+          toast.success("Item adicionado com sucesso!");
+        }
+
+        onSave();
+      } catch (error) {
+        console.error("Erro ao salvar item:", error);
+        toast.error("Erro ao salvar item");
+      } finally {
+        setUploading(false);
       }
-
-      onSave();
-    } catch (error: any) {
-      toast.error("Erro ao salvar item");
-      console.error(error);
-    } finally {
-      setUploading(false);
-    }
-  };
+    };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
