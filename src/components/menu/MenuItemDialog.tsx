@@ -139,6 +139,30 @@ export function MenuItemDialog({
 
     setUploading(true);
     try {
+      // Check for duplicate names
+      const { data: existingItems, error: checkError } = await supabase
+        .from("menu_items")
+        .select("id, name")
+        .eq("user_id", user.id)
+        .ilike("name", values.name);
+
+      if (checkError) throw checkError;
+
+      // If editing, exclude the current item from duplicate check
+      const hasDuplicate = editingItem
+        ? existingItems?.some((item) => item.id !== editingItem.id && item.name.toLowerCase() === values.name.toLowerCase())
+        : existingItems?.some((item) => item.name.toLowerCase() === values.name.toLowerCase());
+
+      if (hasDuplicate) {
+        toast.error("Já existe um produto com este nome");
+        form.setError("name", {
+          type: "manual",
+          message: "Já existe um produto com este nome",
+        });
+        setUploading(false);
+        return;
+      }
+
       let imageUrl = editingItem?.image_url || null;
 
       // Upload new image if selected

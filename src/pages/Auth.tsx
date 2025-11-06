@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, Navigate } from "react-router-dom";
 import { Helmet } from "react-helmet";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
 
 const signUpSchema = z.object({
@@ -16,6 +16,10 @@ const signUpSchema = z.object({
   ownerName: z.string().min(2, "Nome do proprietário deve ter pelo menos 2 caracteres").max(100),
   email: z.string().email("Email inválido").max(255),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres").max(100),
+  confirmPassword: z.string().min(6, "Confirmação de senha deve ter pelo menos 6 caracteres").max(100),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "As senhas não coincidem",
+  path: ["confirmPassword"],
 });
 
 const signInSchema = z.object({
@@ -28,6 +32,9 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>("");
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showSignInPassword, setShowSignInPassword] = useState(false);
 
   // Signup form state
   const [signUpData, setSignUpData] = useState({
@@ -35,6 +42,7 @@ const Auth = () => {
     ownerName: "",
     email: "",
     password: "",
+    confirmPassword: "",
   });
 
   // Signin form state
@@ -42,6 +50,24 @@ const Auth = () => {
     email: "",
     password: "",
   });
+
+  // Password strength calculator
+  const getPasswordStrength = (password: string): { strength: number; label: string; color: string } => {
+    if (password.length === 0) return { strength: 0, label: "", color: "" };
+    
+    let strength = 0;
+    if (password.length >= 6) strength++;
+    if (password.length >= 10) strength++;
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+    if (/\d/.test(password)) strength++;
+    if (/[^a-zA-Z0-9]/.test(password)) strength++;
+
+    if (strength <= 2) return { strength, label: "Fraca", color: "bg-destructive" };
+    if (strength <= 3) return { strength, label: "Média", color: "bg-yellow-500" };
+    return { strength, label: "Forte", color: "bg-green-500" };
+  };
+
+  const passwordStrength = getPasswordStrength(signUpData.password);
 
   if (user && !loading) {
     return <Navigate to="/dashboard" replace />;
@@ -183,15 +209,32 @@ const Auth = () => {
 
                   <div className="space-y-2">
                     <Label htmlFor="signin-password">Senha</Label>
-                    <Input
-                      id="signin-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={signInData.password}
-                      onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
-                      required
-                      disabled={isLoading}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="signin-password"
+                        type={showSignInPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={signInData.password}
+                        onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
+                        required
+                        disabled={isLoading}
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => setShowSignInPassword(!showSignInPassword)}
+                        disabled={isLoading}
+                      >
+                        {showSignInPassword ? (
+                          <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </div>
                     {validationErrors.password && (
                       <p className="text-sm text-destructive">{validationErrors.password}</p>
                     )}
@@ -262,19 +305,88 @@ const Auth = () => {
 
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Senha *</Label>
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={signUpData.password}
-                      onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
-                      required
-                      disabled={isLoading}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="signup-password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={signUpData.password}
+                        onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
+                        required
+                        disabled={isLoading}
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}
+                        disabled={isLoading}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </div>
                     {validationErrors.password && (
                       <p className="text-sm text-destructive">{validationErrors.password}</p>
                     )}
+                    {signUpData.password && (
+                      <div className="space-y-1">
+                        <div className="flex gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <div
+                              key={i}
+                              className={`h-1 flex-1 rounded-full transition-colors ${
+                                i < passwordStrength.strength ? passwordStrength.color : "bg-muted"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        {passwordStrength.label && (
+                          <p className="text-xs text-muted-foreground">
+                            Força da senha: <span className="font-medium">{passwordStrength.label}</span>
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <p className="text-xs text-muted-foreground">Mínimo 6 caracteres</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-password">Confirmar Senha *</Label>
+                    <div className="relative">
+                      <Input
+                        id="confirm-password"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={signUpData.confirmPassword}
+                        onChange={(e) => setSignUpData({ ...signUpData, confirmPassword: e.target.value })}
+                        required
+                        disabled={isLoading}
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        disabled={isLoading}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </div>
+                    {validationErrors.confirmPassword && (
+                      <p className="text-sm text-destructive">{validationErrors.confirmPassword}</p>
+                    )}
                   </div>
 
                   <div className="bg-secondary/50 p-4 rounded-lg">
