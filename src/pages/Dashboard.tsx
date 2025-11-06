@@ -6,30 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Bell, Check, TrendingUp, Users, Clock, Eye } from "lucide-react";
 import { Helmet } from "react-helmet";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoData } from "@/hooks/useDemoData";
 import { toast } from "sonner";
-import { useRealtimeConnection } from "@/hooks/useRealtimeConnection";
-import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
-
-interface Call {
-  id: string;
-  table_id: string;
-  status: string;
-  created_at: string;
-  tables: {
-    table_number: string;
-  };
-}
+import { useRealtimeCalls } from "@/hooks/useRealtimeCalls";
+import type { Table } from "@/types/supabase";
 
 const Dashboard = () => {
   const { user } = useAuth();
   useDemoData(); // Initialize demo data if needed
 
-  const [calls, setCalls] = useState<Call[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { calls, setCalls, isLoading: callsLoading } = useRealtimeCalls();
+  const [isStatsLoading, setIsStatsLoading] = useState(true);
   const [stats, setStats] = useState({
     totalCalls: 0,
     avgResponseTime: "1:30min",
@@ -38,8 +28,6 @@ const Dashboard = () => {
     views: 0,
   });
 
-  const { status: connectionStatus, channel, reconnect } = useRealtimeConnection(user?.id);
-  const { playSound } = useNotificationSound();
   const previousCallsCount = useRef(0);
 
   useEffect(() => {
@@ -47,40 +35,21 @@ const Dashboard = () => {
 
     const fetchDashboardData = async () => {
       try {
-        // Fetch active calls
-        const { data: callsData, error: callsError } = await supabase
-          .from("calls")
-          .select(`
-            id,
-            table_id,
-            status,
-            created_at,
-            tables (
-              table_number
-            )
-          `)
-          .eq("user_id", user.id)
-          .eq("status", "pending")
-          .order("created_at", { ascending: false });
-
-        if (callsError) throw callsError;
-        setCalls(callsData || []);
-
-        // Fetch tables count
         const { data: tablesData, error: tablesError } = await supabase
           .from("tables")
-          .select("id, is_active")
-          .eq("user_id", user.id);
+          .select("*")
+          .eq("user_id", user.id)
+          .order("table_number");
 
         if (tablesError) throw tablesError;
 
-        const activeTables = tablesData?.filter(t => t.is_active).length || 0;
-        const totalTables = tablesData?.length || 0;
+        const typedTables = (tablesData ?? []) as Table[];
+        const activeTables = typedTables.filter((table) => table.is_active).length;
+        const totalTables = typedTables.length;
 
-        // Fetch total calls today
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
+
         const { data: todayCallsData, error: todayCallsError } = await supabase
           .from("calls")
           .select("id")
@@ -90,65 +59,31 @@ const Dashboard = () => {
         if (todayCallsError) throw todayCallsError;
 
         setStats({
-          totalCalls: todayCallsData?.length || 0,
+          totalCalls: todayCallsData?.length ?? 0,
           avgResponseTime: "1:30min",
           activeTables,
           totalTables,
-          views: Math.floor(Math.random() * 200) + 50, // Demo data
+          views: Math.floor(Math.random() * 200) + 50,
         });
-      } catch (error: any) {
+      } catch (error) {
         console.error("Error fetching dashboard data:", error);
         toast.error("Erro ao carregar dados do dashboard");
       } finally {
-        setLoading(false);
+        setIsStatsLoading(false);
       }
     };
 
     fetchDashboardData();
+  }, [user]);
 
-    // Monitorar mudanças no número de chamados
+  useEffect(() => {
     if (calls.length > previousCallsCount.current && previousCallsCount.current > 0) {
-      // Novo chamado detectado - tocar som
-      playSound();
       toast.success("Novo chamado recebido!", {
         duration: 5000,
       });
     }
     previousCallsCount.current = calls.length;
-  }, [user, playSound, calls.length]);
-
-  // Configurar listener do canal realtime
-  useEffect(() => {
-    if (!channel || !user) return;
-
-    // Adicionar novo listener
-    channel.on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'calls',
-        filter: `user_id=eq.${user.id}`,
-      },
-      (payload) => {
-        console.log('Realtime update:', payload);
-        
-        if (payload.eventType === 'INSERT') {
-          // Novo chamado
-          const newCall = payload.new as Call;
-          setCalls(prev => [newCall, ...prev]);
-        } else if (payload.eventType === 'UPDATE') {
-          // Atualização de chamado
-          setCalls(prev => prev.map(call => 
-            call.id === payload.new.id ? { ...call, ...(payload.new as Call) } : call
-          ));
-        } else if (payload.eventType === 'DELETE') {
-          // Remoção de chamado
-          setCalls(prev => prev.filter(call => call.id !== payload.old.id));
-        }
-      }
-    );
-  }, [channel, user]);
+  }, [calls.length]);
 
   const handleAttend = async (callId: string) => {
     try {
@@ -166,9 +101,9 @@ const Dashboard = () => {
       
       // Remove from list after animation
       setTimeout(() => {
-        setCalls(calls.filter(call => call.id !== callId));
+        setCalls((prevCalls) => prevCalls.filter((call) => call.id !== callId));
       }, 1000);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error attending call:", error);
       toast.error("Erro ao atender chamado");
     }
@@ -183,12 +118,22 @@ const Dashboard = () => {
     return `Há ${minutes} min`;
   };
 
+  const occupancy = stats.totalTables > 0 ? Math.round((stats.activeTables / stats.totalTables) * 100) : 0;
+
   const dashboardStats = [
     { icon: Bell, label: "Chamados Hoje", value: stats.totalCalls.toString(), trend: "+12%", color: "text-primary" },
     { icon: Clock, label: "Tempo Médio", value: stats.avgResponseTime, trend: "-23%", color: "text-accent" },
-    { icon: Users, label: "Mesas Ativas", value: `${stats.activeTables}/${stats.totalTables}`, trend: `${Math.round((stats.activeTables/stats.totalTables)*100)}%`, color: "text-blue-500" },
+    { icon: Users, label: "Mesas Ativas", value: `${stats.activeTables}/${stats.totalTables}`, trend: `${occupancy}%`, color: "text-blue-500" },
     { icon: Eye, label: "Visualizações", value: stats.views.toString(), trend: "+8%", color: "text-purple-500" },
   ];
+
+  if (isStatsLoading && callsLoading) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <div className="text-center">Carregando...</div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -207,7 +152,7 @@ const Dashboard = () => {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-2">
               <h1 className="text-4xl font-bold">Dashboard</h1>
-              <ConnectionStatus status={connectionStatus} onReconnect={reconnect} />
+              <ConnectionStatus />
             </div>
             <p className="text-muted-foreground">Painel de controle em tempo real do seu restaurante</p>
           </div>
@@ -233,66 +178,66 @@ const Dashboard = () => {
             ))}
           </div>
 
-          {/* Active Calls */}
-          <Card className="p-6 bg-gradient-card">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold">Chamados Ativos</h2>
-                <p className="text-sm text-muted-foreground">Mesas solicitando atendimento</p>
+            {/* Active Calls */}
+            <Card className="p-6 bg-gradient-card">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold">Chamados Ativos</h2>
+                  <p className="text-sm text-muted-foreground">Mesas solicitando atendimento</p>
+                </div>
+                {calls.filter((c) => c.status === "pending").length > 0 && (
+                  <Badge className="bg-primary text-primary-foreground animate-pulse">
+                    {calls.filter((c) => c.status === "pending").length} pendente(s)
+                  </Badge>
+                )}
               </div>
-              {calls.filter(c => c.status === "pending").length > 0 && (
-                <Badge className="bg-primary text-primary-foreground animate-pulse">
-                  {calls.filter(c => c.status === "pending").length} pendente(s)
-                </Badge>
-              )}
-            </div>
 
-            <div className="space-y-4">
-              {loading ? (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground">Carregando chamados...</p>
-                </div>
-              ) : calls.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-                    <Check className="h-8 w-8 text-muted-foreground" />
+              <div className="space-y-4">
+                {callsLoading ? (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground">Carregando chamados...</p>
                   </div>
-                  <p className="text-muted-foreground">Nenhum chamado ativo no momento</p>
-                </div>
-              ) : (
-                calls.map((call) => (
-                  <Card
-                    key={call.id}
-                    className="p-6 border-2 border-primary shadow-glow animate-pulse transition-all duration-300"
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold bg-gradient-hero text-primary-foreground">
-                          {call.tables?.table_number || "--"}
-                        </div>
-                        <div>
-                          <h3 className="text-xl font-semibold">Mesa {call.tables?.table_number || "--"}</h3>
-                          <p className="text-sm text-muted-foreground flex items-center gap-2">
-                            <Clock className="h-4 w-4" />
-                            {getTimeAgo(call.created_at)}
-                          </p>
-                        </div>
-                      </div>
-
-                      <Button
-                        size="lg"
-                        onClick={() => handleAttend(call.id)}
-                        className="min-w-[140px]"
-                      >
-                        <Bell className="mr-2 h-5 w-5" />
-                        Atender
-                      </Button>
+                ) : calls.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+                      <Check className="h-8 w-8 text-muted-foreground" />
                     </div>
-                  </Card>
-                ))
-              )}
-            </div>
-          </Card>
+                    <p className="text-muted-foreground">Nenhum chamado ativo no momento</p>
+                  </div>
+                ) : (
+                  calls.map((call) => (
+                    <Card
+                      key={call.id}
+                      className="p-6 border-2 border-primary shadow-glow animate-pulse transition-all duration-300"
+                    >
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold bg-gradient-hero text-primary-foreground">
+                            {call.table_number || "--"}
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-semibold">Mesa {call.table_number || "--"}</h3>
+                            <p className="text-sm text-muted-foreground flex items-center gap-2">
+                              <Clock className="h-4 w-4" />
+                              {getTimeAgo(call.created_at)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <Button
+                          size="lg"
+                          onClick={() => handleAttend(call.id)}
+                          className="min-w-[140px]"
+                        >
+                          <Bell className="mr-2 h-5 w-5" />
+                          Atender
+                        </Button>
+                      </div>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </Card>
 
           {/* Demo/Trial Notice */}
           <Card className="mt-6 p-4 bg-secondary/50 border-primary/20">
