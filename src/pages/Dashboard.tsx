@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoData } from "@/hooks/useDemoData";
 import { toast } from "sonner";
+import { useRealtimeConnection } from "@/hooks/useRealtimeConnection";
+import { useNotificationSound } from "@/hooks/useNotificationSound";
+import { ConnectionStatus } from "@/components/ConnectionStatus";
 
 interface Call {
   id: string;
@@ -34,6 +37,10 @@ const Dashboard = () => {
     totalTables: 0,
     views: 0,
   });
+
+  const { status: connectionStatus, channel, reconnect } = useRealtimeConnection(user?.id);
+  const { playSound } = useNotificationSound();
+  const previousCallsCount = useRef(0);
 
   useEffect(() => {
     if (!user) return;
@@ -99,27 +106,49 @@ const Dashboard = () => {
 
     fetchDashboardData();
 
-    // Subscribe to realtime calls
-    const channel = supabase
-      .channel("calls-changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "calls",
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          fetchDashboardData();
-        }
-      )
-      .subscribe();
+    // Monitorar mudanças no número de chamados
+    if (calls.length > previousCallsCount.current && previousCallsCount.current > 0) {
+      // Novo chamado detectado - tocar som
+      playSound();
+      toast.success("Novo chamado recebido!", {
+        duration: 5000,
+      });
+    }
+    previousCallsCount.current = calls.length;
+  }, [user, playSound, calls.length]);
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
+  // Configurar listener do canal realtime
+  useEffect(() => {
+    if (!channel || !user) return;
+
+    // Adicionar novo listener
+    channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'calls',
+        filter: `user_id=eq.${user.id}`,
+      },
+      (payload) => {
+        console.log('Realtime update:', payload);
+        
+        if (payload.eventType === 'INSERT') {
+          // Novo chamado
+          const newCall = payload.new as Call;
+          setCalls(prev => [newCall, ...prev]);
+        } else if (payload.eventType === 'UPDATE') {
+          // Atualização de chamado
+          setCalls(prev => prev.map(call => 
+            call.id === payload.new.id ? { ...call, ...(payload.new as Call) } : call
+          ));
+        } else if (payload.eventType === 'DELETE') {
+          // Remoção de chamado
+          setCalls(prev => prev.filter(call => call.id !== payload.old.id));
+        }
+      }
+    );
+  }, [channel, user]);
 
   const handleAttend = async (callId: string) => {
     try {
@@ -176,7 +205,10 @@ const Dashboard = () => {
         
         <main className="container px-4 md:px-6 py-8">
           <div className="mb-8">
-            <h1 className="text-4xl font-bold mb-2">Dashboard</h1>
+            <div className="flex items-center justify-between mb-2">
+              <h1 className="text-4xl font-bold">Dashboard</h1>
+              <ConnectionStatus status={connectionStatus} onReconnect={reconnect} />
+            </div>
             <p className="text-muted-foreground">Painel de controle em tempo real do seu restaurante</p>
           </div>
 
