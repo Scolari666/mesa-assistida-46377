@@ -1,40 +1,45 @@
-import { Wifi, WifiOff, Loader2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
 
-interface ConnectionStatusProps {
-  status: 'connected' | 'connecting' | 'disconnected';
-  onReconnect: () => void;
-}
+export const ConnectionStatus = () => {
+  const [isOnline, setIsOnline] = useState(typeof window !== 'undefined' ? navigator.onLine : true)
+  const [isSupabaseConnected, setIsSupabaseConnected] = useState(false)
 
-export const ConnectionStatus = ({ status, onReconnect }: ConnectionStatusProps) => {
-  if (status === 'connected') {
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    supabase.realtime.onOpen(() => setIsSupabaseConnected(true))
+    supabase.realtime.onClose(() => setIsSupabaseConnected(false))
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  if (!isOnline) {
     return (
-      <Badge variant="outline" className="border-green-500 text-green-500 bg-green-500/10">
-        <Wifi className="h-3 w-3 mr-1" />
-        Conectado
-      </Badge>
-    );
+      <div className="connection-status offline">
+        🔴 Offline - Verifique sua conexão
+      </div>
+    )
   }
 
-  if (status === 'connecting') {
+  if (!isSupabaseConnected) {
     return (
-      <Badge variant="outline" className="border-yellow-500 text-yellow-500 bg-yellow-500/10">
-        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-        Conectando...
-      </Badge>
-    );
+      <div className="connection-status connecting">
+        🟡 Conectando ao servidor...
+      </div>
+    )
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <Badge variant="outline" className="border-red-500 text-red-500 bg-red-500/10">
-        <WifiOff className="h-3 w-3 mr-1" />
-        Desconectado
-      </Badge>
-      <Button size="sm" variant="outline" onClick={onReconnect}>
-        Reconectar
-      </Button>
+    <div className="connection-status online">
+      🟢 Conectado - Chamadas em tempo real ativas
     </div>
-  );
-};
+  )
+}
