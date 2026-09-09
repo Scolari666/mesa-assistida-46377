@@ -1,8 +1,9 @@
 import { Navbar } from "@/components/Navbar";
 import { Hero } from "@/components/Hero";
-import { Features } from "@/components/Features";
-import { HowItWorks } from "@/components/HowItWorks";
-import { CTA } from "@/components/CTA";
+import { AboutSection } from "@/components/AboutSection";
+import { WeeklyAgenda } from "@/components/WeeklyAgenda";
+import { FeaturedMenu } from "@/components/FeaturedMenu";
+import { LocationHours } from "@/components/LocationHours";
 import { Footer } from "@/components/Footer";
 import { Helmet } from "react-helmet";
 
@@ -10,20 +11,21 @@ const Index = () => {
   return (
     <>
       <Helmet>
-        <title>MenuFacil Pro - Cardápio Digital com Botão de Chamar Atendente</title>
-        <meta 
-          name="description" 
-          content="Transforme seu restaurante com cardápio digital via QR Code e botão para chamar atendente. Reduza custos, elimine espera e melhore a experiência do cliente." 
+        <title>Porks Santa Maria - Porco &amp; Chope</title>
+        <meta
+          name="description"
+          content="Peça online no Porks Santa Maria: pratos de porco, chopes gelados, petiscos, combos e drinks. Entrega ou retirada, com desconto no pagamento online."
         />
       </Helmet>
-      
-      <div className="min-h-screen bg-gradient-subtle">
+
+      <div className="min-h-screen bg-background">
         <Navbar />
         <main>
           <Hero />
-          <Features />
-          <HowItWorks />
-          <CTA />
+          <AboutSection />
+          <WeeklyAgenda />
+          <FeaturedMenu />
+          <LocationHours />
         </main>
         <Footer />
       </div>

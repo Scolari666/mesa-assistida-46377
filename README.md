@@ -1,4 +1,26 @@
-# Welcome to your Lovable project
+# Porks Santa Maria — pedidos online
+
+SaaS de pedidos online do Porks Santa Maria (Porco & Chope): landing page,
+cardápio com carrinho/checkout e painel administrativo.
+
+## Setup
+
+1. **Banco**: aplique `supabase/migrations/20260909000000_porks_schema.sql` no
+   projeto Supabase (`supabase db push` ou SQL Editor). Ela cria o schema,
+   as políticas de RLS, o bucket `porks-images`, as funções
+   `create_order` / `find_customer_by_phone` / `is_store_open_at` e dados de
+   exemplo do cardápio.
+2. **Variáveis de ambiente**: copie `.env.example` para `.env` e preencha
+   `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` (chave anon).
+3. **Primeiro admin**: acesse `/admin/login` e use a aba "Criar admin". Ela só
+   fica disponível enquanto não existe nenhum administrador; depois disso,
+   novos admins são cadastrados por quem já tem acesso.
+4. **Configurações**: em `/admin/configuracoes` ajuste taxa por km, raio de
+   entrega, percentual e pedido mínimo do desconto online, endereço/coordenadas
+   do bar e horário de funcionamento.
+
+Preços, taxa de entrega, desconto e horário são sempre recalculados no backend
+pela função `create_order` — o cliente só envia produto, variação e quantidade.
 
 ## Project info
 

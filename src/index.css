@@ -2,96 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Porks Santa Maria design system — preto/vermelho/branco, tipografia de
+cartaz. All colors MUST be HSL so shadcn's hsl(var(--x)) usage keeps working. */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 20 14% 10%;
+    --background: 0 0% 5%;
+    --foreground: 0 0% 97%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 20 14% 10%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 97%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 20 14% 10%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 97%;
 
-    /* Laranja coral vibrante para CTAs */
-    --primary: 14 90% 55%;
+    /* Vermelho Porks */
+    --primary: 355 78% 56%;
     --primary-foreground: 0 0% 100%;
-    
-    /* Laranja mais suave para secundário */
-    --secondary: 25 95% 95%;
-    --secondary-foreground: 20 14% 10%;
 
-    --muted: 25 20% 96%;
-    --muted-foreground: 20 10% 45%;
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 0 0% 97%;
 
-    /* Verde para sucesso/confirmações */
-    --accent: 142 76% 45%;
-    --accent-foreground: 0 0% 100%;
+    --muted: 0 0% 16%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 355 55% 22%;
+    --accent-foreground: 0 0% 97%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 20 15% 90%;
-    --input: 20 15% 90%;
-    --ring: 14 90% 55%;
+    --border: 0 0% 22%;
+    --input: 0 0% 22%;
+    --ring: 355 78% 56%;
 
-    --radius: 0.75rem;
+    --radius: 0.4rem;
 
-    /* Gradientes customizados */
-    --gradient-hero: linear-gradient(135deg, hsl(14 90% 55%) 0%, hsl(25 95% 65%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(25 95% 98%) 100%);
-    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(25 40% 98%) 100%);
-    
-    /* Sombras elegantes */
-    --shadow-elegant: 0 10px 40px -10px hsl(14 90% 55% / 0.2);
-    --shadow-card: 0 4px 20px -2px hsl(20 20% 20% / 0.08);
-    --shadow-glow: 0 0 30px hsl(14 90% 55% / 0.3);
-    
-    /* Transições */
+    --gradient-hero: linear-gradient(135deg, hsl(355 78% 40%) 0%, hsl(0 0% 4%) 70%);
+    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 5%) 0%, hsl(0 0% 8%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 9%) 0%, hsl(0 0% 6%) 100%);
+
+    --shadow-elegant: 0 10px 40px -10px hsl(355 78% 40% / 0.4);
+    --shadow-card: 0 4px 20px -2px hsl(0 0% 0% / 0.5);
+    --shadow-glow: 0 0 30px hsl(355 78% 56% / 0.45);
+
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .dark {
-    --background: 20 25% 8%;
-    --foreground: 25 10% 95%;
-
-    --card: 20 22% 12%;
-    --card-foreground: 25 10% 95%;
-
-    --popover: 20 22% 12%;
-    --popover-foreground: 25 10% 95%;
-
-    --primary: 14 90% 55%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 20 22% 18%;
-    --secondary-foreground: 25 10% 95%;
-
-    --muted: 20 22% 16%;
-    --muted-foreground: 25 8% 60%;
-
-    --accent: 142 76% 45%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 20 20% 20%;
-    --input: 20 20% 20%;
-    --ring: 14 90% 55%;
-    
-    --gradient-hero: linear-gradient(135deg, hsl(14 90% 55%) 0%, hsl(25 85% 50%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(20 25% 8%) 0%, hsl(20 22% 12%) 100%);
-    --gradient-card: linear-gradient(135deg, hsl(20 22% 12%) 0%, hsl(20 20% 15%) 100%);
-    
-    --shadow-elegant: 0 10px 40px -10px hsl(14 90% 55% / 0.3);
-    --shadow-card: 0 4px 20px -2px hsl(0 0% 0% / 0.3);
-    --shadow-glow: 0 0 30px hsl(14 90% 55% / 0.4);
-  }
 }
 
 @layer base {
@@ -100,6 +57,36 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display uppercase tracking-wide;
+  }
+}
+
+@layer utilities {
+  .font-hand {
+    font-family: "Permanent Marker", cursive;
+  }
+
+  /* Halftone / meio-tom texture: a red dot grid, used sparingly on section
+  headers and dividers per the brand guide. */
+  .bg-halftone {
+    background-image: radial-gradient(circle, hsl(var(--primary) / 0.55) 1.4px, transparent 1.6px);
+    background-size: 10px 10px;
+  }
+
+  .bg-halftone-dense {
+    background-image: radial-gradient(circle, hsl(var(--primary) / 0.7) 1.8px, transparent 2px);
+    background-size: 7px 7px;
+  }
+
+  .text-stroke {
+    -webkit-text-stroke: 1.5px hsl(var(--foreground));
+  }
+
+  .clip-stencil {
+    clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
   }
 }

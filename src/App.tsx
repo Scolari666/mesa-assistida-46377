@@ -4,13 +4,19 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { CartProvider } from "@/contexts/CartContext";
+import { CustomerProvider } from "@/contexts/CustomerContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import MenuDemo from "./pages/MenuDemo";
-import Dashboard from "./pages/Dashboard";
-import MenuManagement from "./pages/MenuManagement";
-import Pricing from "./pages/Pricing";
+import Cardapio from "./pages/Cardapio";
+import Cart from "./pages/Cart";
+import Identify from "./pages/Identify";
+import Checkout from "./pages/Checkout";
+import OrderStatus from "./pages/OrderStatus";
+import AdminLogin from "./pages/admin/AdminLogin";
+import AdminOrders from "./pages/admin/AdminOrders";
+import AdminMenu from "./pages/admin/AdminMenu";
+import AdminSettings from "./pages/admin/AdminSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,31 +28,46 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/menu-demo" element={<MenuDemo />} />
-            <Route path="/menu/:userId" element={<MenuDemo />} />
-            <Route path="/pricing" element={<Pricing />} />
-            <Route 
-              path="/dashboard" 
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/menu-management" 
-              element={
-                <ProtectedRoute>
-                  <MenuManagement />
-                </ProtectedRoute>
-              } 
-            />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <CartProvider>
+            <CustomerProvider>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/cardapio" element={<Cardapio />} />
+                <Route path="/carrinho" element={<Cart />} />
+                <Route path="/identificar" element={<Identify />} />
+                <Route path="/finalizar" element={<Checkout />} />
+                <Route path="/pedido/:id" element={<OrderStatus />} />
+
+                <Route path="/admin/login" element={<AdminLogin />} />
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute>
+                      <AdminOrders />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/cardapio"
+                  element={
+                    <ProtectedRoute>
+                      <AdminMenu />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/configuracoes"
+                  element={
+                    <ProtectedRoute>
+                      <AdminSettings />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </CustomerProvider>
+          </CartProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

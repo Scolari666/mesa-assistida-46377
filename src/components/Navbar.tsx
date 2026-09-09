@@ -1,116 +1,81 @@
 import { Button } from "@/components/ui/button";
-import { Menu, X, LogOut } from "lucide-react";
+import { Menu, X, ShoppingCart } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
+import porksLogo from "@/assets/porks-logo.png";
+
+const NAV_LINKS = [
+  { href: "/#o-lugar", label: "O Lugar" },
+  { href: "/#agenda", label: "Agenda" },
+  { href: "/#cardapio", label: "Cardápio" },
+  { href: "/#local", label: "Local" },
+];
 
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { user, signOut } = useAuth();
+  const { itemCount } = useCart();
 
   return (
-    <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border/50">
+    <nav className="sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
       <div className="container px-4 md:px-6">
         <div className="flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center space-x-2">
-            <div className="w-10 h-10 rounded-lg bg-gradient-hero flex items-center justify-center">
-              <span className="text-2xl font-bold text-primary-foreground">M</span>
-            </div>
-            <span className="text-xl font-bold">MenuFacil Pro</span>
+          <Link to="/" className="flex items-center gap-2">
+            <img src={porksLogo} alt="Porks Santa Maria" className="h-11 w-11" />
+            <span className="font-display text-xl tracking-wide leading-none">
+              Porks <span className="text-primary">Santa Maria</span>
+            </span>
           </Link>
 
-          {/* Desktop Menu */}
-          <div className="hidden md:flex items-center space-x-8">
-            <Link to="/" className="text-sm font-medium hover:text-primary transition-colors">
-              Início
-            </Link>
-            <Link to="/menu-demo" className="text-sm font-medium hover:text-primary transition-colors">
-              Demo
-            </Link>
-            <Link to="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
-              Preços
-            </Link>
-            {user && (
-              <>
-                <Link to="/dashboard" className="text-sm font-medium hover:text-primary transition-colors">
-                  Dashboard
-                </Link>
-                <Link to="/menu-management" className="text-sm font-medium hover:text-primary transition-colors">
-                  Cardápio
-                </Link>
-              </>
-            )}
+          <div className="hidden md:flex items-center gap-8">
+            {NAV_LINKS.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="text-sm font-semibold uppercase tracking-wide hover:text-primary transition-colors"
+              >
+                {link.label}
+              </a>
+            ))}
           </div>
 
-          <div className="hidden md:flex items-center space-x-4">
-            {user ? (
-              <>
-                <Button variant="ghost" onClick={signOut}>
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Sair
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button variant="outline" asChild>
-                  <Link to="/auth">Entrar</Link>
-                </Button>
-                <Button asChild>
-                  <Link to="/auth">Começar Grátis</Link>
-                </Button>
-              </>
-            )}
+          <div className="hidden md:flex items-center gap-3">
+            <Button asChild className="font-display tracking-wide">
+              <Link to="/cardapio">
+                <ShoppingCart className="mr-2 h-4 w-4" />
+                Peça Já {itemCount > 0 && `(${itemCount})`}
+              </Link>
+            </Button>
           </div>
 
-          {/* Mobile Menu Button */}
           <button
             className="md:hidden p-2"
             onClick={() => setIsOpen(!isOpen)}
+            aria-label="Abrir menu"
           >
             {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </div>
 
-        {/* Mobile Menu */}
         {isOpen && (
-          <div className="md:hidden py-4 border-t border-border/50">
-            <div className="flex flex-col space-y-4">
-              <Link to="/" className="text-sm font-medium hover:text-primary transition-colors">
-                Início
-              </Link>
-              <Link to="/menu-demo" className="text-sm font-medium hover:text-primary transition-colors">
-                Demo
-              </Link>
-              <Link to="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
-                Preços
-              </Link>
-              {user && (
-                <>
-                  <Link to="/dashboard" className="text-sm font-medium hover:text-primary transition-colors">
-                    Dashboard
-                  </Link>
-                  <Link to="/menu-management" className="text-sm font-medium hover:text-primary transition-colors">
-                    Cardápio
-                  </Link>
-                </>
-              )}
-              <div className="flex flex-col gap-2 pt-4">
-                {user ? (
-                  <Button variant="outline" className="w-full" onClick={signOut}>
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Sair
-                  </Button>
-                ) : (
-                  <>
-                    <Button variant="outline" className="w-full" asChild>
-                      <Link to="/auth">Entrar</Link>
-                    </Button>
-                    <Button className="w-full" asChild>
-                      <Link to="/auth">Começar Grátis</Link>
-                    </Button>
-                  </>
-                )}
-              </div>
+          <div className="md:hidden py-4 border-t border-border">
+            <div className="flex flex-col gap-4">
+              {NAV_LINKS.map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setIsOpen(false)}
+                  className="text-sm font-semibold uppercase tracking-wide hover:text-primary transition-colors"
+                >
+                  {link.label}
+                </a>
+              ))}
+              <Button asChild className="w-full font-display tracking-wide">
+                <Link to="/cardapio" onClick={() => setIsOpen(false)}>
+                  <ShoppingCart className="mr-2 h-4 w-4" />
+                  Peça Já {itemCount > 0 && `(${itemCount})`}
+                </Link>
+              </Button>
             </div>
           </div>
         )}

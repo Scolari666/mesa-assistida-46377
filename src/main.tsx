@@ -1,4 +1,7 @@
 import { createRoot } from "react-dom/client";
+import "@fontsource-variable/inter";
+import "@fontsource/anton";
+import "@fontsource/permanent-marker";
 import App from "./App.tsx";
 import "./index.css";
 
