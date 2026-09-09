@@ -74,11 +74,40 @@ const Checkout = () => {
   });
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [geocoding, setGeocoding] = useState(false);
+  const [geocodeFailed, setGeocodeFailed] = useState(false);
 
   useEffect(() => {
     if (items.length === 0) navigate("/carrinho", { replace: true });
     else if (!customer) navigate("/identificar", { replace: true });
   }, [items.length, customer, navigate]);
+
+  // Calculate the delivery fee automatically as soon as there's enough
+  // address to geocode, instead of making the customer trigger it — debounced
+  // so it fires once they pause typing, not on every keystroke.
+  useEffect(() => {
+    if (fulfillment !== "delivery" || !address.street.trim() || !address.number.trim()) {
+      setCoords(null);
+      setGeocodeFailed(false);
+      return;
+    }
+
+    setGeocodeFailed(false);
+    const timer = setTimeout(async () => {
+      setGeocoding(true);
+      const result = await geocodeAddress(address);
+      setGeocoding(false);
+
+      if (result) {
+        setCoords({ lat: result.lat, lng: result.lng });
+      } else {
+        setCoords(null);
+        setGeocodeFailed(true);
+      }
+    }, 900);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fulfillment, address.street, address.number, address.neighborhood, address.city, address.state]);
 
   const payOnline = payment === "pix_online" || payment === "card_online";
 
@@ -98,24 +127,6 @@ const Checkout = () => {
   }, [payOnline, settings, subtotal]);
 
   const estimatedTotal = subtotal + estimatedFee - estimatedDiscount;
-
-  const handleGeocode = async () => {
-    if (!address.street || !address.number) {
-      toast.error("Preencha rua e número para calcular a entrega.");
-      return;
-    }
-    setGeocoding(true);
-    const result = await geocodeAddress(address);
-    setGeocoding(false);
-
-    if (!result) {
-      toast.error("Não conseguimos localizar esse endereço. Revise os dados.");
-      setCoords(null);
-      return;
-    }
-    setCoords({ lat: result.lat, lng: result.lng });
-    toast.success("Endereço localizado! Taxa de entrega calculada.");
-  };
 
   const canSubmit =
     !!fulfillment &&
@@ -322,23 +333,27 @@ const Checkout = () => {
                     />
                   </div>
 
-                  <Button variant="outline" onClick={handleGeocode} disabled={geocoding} className="w-full">
+                  <div className="text-sm pt-1">
                     {geocoding ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Localizando endereço...
-                      </>
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Calculando taxa de entrega...
+                      </span>
+                    ) : coords ? (
+                      <span>
+                        Taxa de entrega:{" "}
+                        <span className="font-semibold text-primary">{formatCurrency(estimatedFee)}</span>
+                      </span>
+                    ) : geocodeFailed ? (
+                      <span className="text-destructive">
+                        Não conseguimos localizar esse endereço. Confira os dados.
+                      </span>
                     ) : (
-                      "Calcular taxa de entrega"
+                      <span className="text-muted-foreground">
+                        Preencha rua e número para calcularmos a taxa de entrega.
+                      </span>
                     )}
-                  </Button>
-
-                  {coords && (
-                    <p className="text-sm text-center">
-                      Taxa de entrega estimada:{" "}
-                      <span className="font-semibold text-primary">{formatCurrency(estimatedFee)}</span>
-                    </p>
-                  )}
+                  </div>
                 </div>
               )}
 
