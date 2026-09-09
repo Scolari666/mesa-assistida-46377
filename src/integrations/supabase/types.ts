@@ -388,6 +388,8 @@ export type Database = {
           total: number
           notes: string | null
           status: Database["public"]["Enums"]["order_status"]
+          stripe_checkout_session_id: string | null
+          stripe_payment_intent_id: string | null
           created_at: string
           updated_at: string
         }
@@ -409,6 +411,8 @@ export type Database = {
           total: number
           notes?: string | null
           status?: Database["public"]["Enums"]["order_status"]
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -430,6 +434,8 @@ export type Database = {
           total?: number
           notes?: string | null
           status?: Database["public"]["Enums"]["order_status"]
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -490,6 +496,38 @@ export type Database = {
           },
         ]
       }
+      stripe_checkout_intents: {
+        Row: {
+          id: string
+          checkout_session_id: string
+          payload: Json
+          order_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          checkout_session_id: string
+          payload: Json
+          order_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          checkout_session_id?: string
+          payload?: Json
+          order_id?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_checkout_intents_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -498,6 +536,18 @@ export type Database = {
       admin_users_is_empty: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      compute_order_pricing: {
+        Args: { payload: Json }
+        Returns: Json
+      }
+      quote_order: {
+        Args: { payload: Json }
+        Returns: Json
+      }
+      get_order_by_stripe_session: {
+        Args: { p_session_id: string }
+        Returns: Json
       }
       is_admin: {
         Args: Record<PropertyKey, never>

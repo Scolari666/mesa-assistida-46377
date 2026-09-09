@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { ShoppingBag, MapPin } from "lucide-react";
 import { useParallax } from "@/hooks/useParallax";
 import porksLogo from "@/assets/porks-logo.png";
+import heroBg from "@/assets/hero-bg-cup.jpg";
 
 const container: Variants = {
   hidden: {},
@@ -26,11 +27,16 @@ export const Hero = () => {
       className="relative min-h-[92vh] flex items-center overflow-hidden bg-background"
     >
       <div
-        className="absolute inset-0 bg-halftone-dense opacity-40"
+        className="absolute inset-0 bg-cover bg-top opacity-25"
+        style={{ backgroundImage: `url(${heroBg})`, transform: `translateY(${offset}px) scale(1.1)` }}
+        aria-hidden
+      />
+      <div
+        className="absolute inset-0 bg-halftone-dense opacity-25"
         style={{ transform: `translateY(${offset}px)` }}
         aria-hidden
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-background via-background/70 to-background" />
+      <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/85 to-background" />
 
       <div className="container relative z-10 px-4 md:px-6 py-20">
         <div className="grid md:grid-cols-2 gap-10 items-center">
