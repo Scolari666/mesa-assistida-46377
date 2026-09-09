@@ -1,6 +1,6 @@
-import heroRestaurant from "@/assets/hero-restaurant.jpg";
-import foodDishes from "@/assets/food-dishes.jpg";
-import phoneMenu from "@/assets/phone-menu.jpg";
+import aboutStorefront from "@/assets/about-storefront.jpg";
+import aboutChope from "@/assets/about-chope.jpg";
+import aboutNeonRoom from "@/assets/about-neon-room.jpg";
 
 export const AboutSection = () => {
   return (
@@ -26,18 +26,18 @@ export const AboutSection = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <img
-              src={heroRestaurant}
-              alt="Ambiente do Porks Santa Maria"
+              src={aboutStorefront}
+              alt="Fachada do Porks Santa Maria"
               className="rounded-lg col-span-2 h-56 w-full object-cover border border-border hover:scale-[1.02] transition-transform duration-300"
             />
             <img
-              src={foodDishes}
-              alt="Pratos do Porks"
+              src={aboutChope}
+              alt="Chope gelado do Porks"
               className="rounded-lg h-40 w-full object-cover border border-border hover:scale-[1.02] transition-transform duration-300"
             />
             <img
-              src={phoneMenu}
-              alt="Cardápio digital Porks"
+              src={aboutNeonRoom}
+              alt="Ambiente decorado do Porks"
               className="rounded-lg h-40 w-full object-cover border border-border hover:scale-[1.02] transition-transform duration-300"
             />
           </div>
