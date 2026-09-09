@@ -33,8 +33,10 @@ DROP TABLE IF EXISTS public.profiles CASCADE;
 DROP TYPE IF EXISTS public.restaurant_type;
 DROP TYPE IF EXISTS public.subscription_plan;
 
-DELETE FROM storage.objects WHERE bucket_id = 'menu-images';
-DELETE FROM storage.buckets WHERE id = 'menu-images';
+-- Supabase blocks direct DELETE on storage.objects/buckets (must go through
+-- the Storage API/dashboard), so any leftover 'menu-images' bucket from an
+-- older deployment of the previous schema has to be removed there manually.
+-- Dropping the old policies by name is unaffected by that restriction.
 DROP POLICY IF EXISTS "Anyone can view menu images" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated users can upload menu images" ON storage.objects;
 DROP POLICY IF EXISTS "Users can update their own menu images" ON storage.objects;
