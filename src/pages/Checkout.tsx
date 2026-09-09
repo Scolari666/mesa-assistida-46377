@@ -180,14 +180,23 @@ const Checkout = () => {
         });
         const result = await response.json();
 
-        if (!response.ok || !result.url) {
-          const code = Object.keys(ERROR_MESSAGES).find((key) => (result.error ?? "").includes(key));
-          toast.error(code ? ERROR_MESSAGES[code] : "Não foi possível iniciar o pagamento. Tente novamente.");
-          setSubmitting(false);
+        if (response.ok && result.url) {
+          window.location.href = result.url;
           return;
         }
 
-        window.location.href = result.url;
+        if (result.error === "STRIPE_NOT_CONFIGURED") {
+          // No Stripe account connected yet (portfolio/demo mode): behave as
+          // if the payment had gone through instead of blocking checkout.
+          // Once real Stripe keys are set in the deployment, this branch
+          // stops triggering and payments are actually processed above.
+          await submitOrder(payload);
+          return;
+        }
+
+        const code = Object.keys(ERROR_MESSAGES).find((key) => (result.error ?? "").includes(key));
+        toast.error(code ? ERROR_MESSAGES[code] : "Não foi possível iniciar o pagamento. Tente novamente.");
+        setSubmitting(false);
       } catch {
         toast.error("Não foi possível iniciar o pagamento. Tente novamente.");
         setSubmitting(false);
@@ -195,6 +204,11 @@ const Checkout = () => {
       return;
     }
 
+    await submitOrder(payload);
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const submitOrder = async (payload: any) => {
     const { data, error } = await supabase.rpc("create_order", { payload });
     setSubmitting(false);
 
