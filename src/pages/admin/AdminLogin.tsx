@@ -44,10 +44,16 @@ const AdminLogin = () => {
   const handleSignUp = async (event: React.FormEvent) => {
     event.preventDefault();
     setSubmitting(true);
-    const { error } = await signUp(email, password, fullName);
+    const { error, needsEmailConfirmation } = await signUp(email, password, fullName);
     setSubmitting(false);
     if (error) {
       toast.error(error);
+      return;
+    }
+    if (needsEmailConfirmation) {
+      toast.success("Confirme seu email para ativar a conta e depois faça login na aba \"Entrar\".", {
+        duration: 8000,
+      });
       return;
     }
     toast.success("Administrador criado!");

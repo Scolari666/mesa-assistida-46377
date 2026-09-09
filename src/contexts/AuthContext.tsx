@@ -7,16 +7,33 @@ interface AuthContextType {
   session: Session | null;
   isAdmin: boolean;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-async function checkIsAdmin(userId: string): Promise<boolean> {
-  const { data } = await supabase.from("admin_users").select("user_id").eq("user_id", userId).maybeSingle();
-  return !!data;
+// Handles both cases: a Supabase project with "Confirm email" off (signUp()
+// returns an active session immediately, so this runs right after signup)
+// and one with it on (no session until the user confirms and logs in, so
+// this only gets a chance to run on that later signIn). Either way, the
+// first person to reach an authenticated session while admin_users is still
+// empty becomes the admin — mirrors the "Bootstrap first admin" RLS policy.
+async function checkIsAdminOrBootstrap(user: User): Promise<boolean> {
+  const { data: existing } = await supabase
+    .from("admin_users")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (existing) return true;
+
+  const { data: isEmpty } = await supabase.rpc("admin_users_is_empty");
+  if (!isEmpty) return false;
+
+  const fullName = (user.user_metadata?.full_name as string | undefined) ?? null;
+  const { error } = await supabase.from("admin_users").insert({ user_id: user.id, full_name: fullName });
+  return !error;
 }
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -31,7 +48,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const applySession = async (nextSession: Session | null) => {
       setSession(nextSession);
       setUser(nextSession?.user ?? null);
-      setIsAdmin(nextSession?.user ? await checkIsAdmin(nextSession.user.id) : false);
+      setIsAdmin(nextSession?.user ? await checkIsAdminOrBootstrap(nextSession.user) : false);
       setLoading(false);
     };
 
@@ -52,23 +69,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       options: { data: { full_name: fullName } },
     });
 
-    if (error) return { error: error.message };
+    if (error) return { error: error.message, needsEmailConfirmation: false };
 
-    if (data.user) {
-      const { error: adminError } = await supabase
-        .from("admin_users")
-        .insert({ user_id: data.user.id, full_name: fullName });
-
-      if (adminError) {
-        return {
-          error:
-            "Conta criada, mas já existe um administrador cadastrado. Peça para um admin existente liberar seu acesso.",
-        };
-      }
-      setIsAdmin(true);
+    // With "Confirm email" enabled in Supabase Auth, signUp() creates the
+    // user but no session — onAuthStateChange won't fire, so there's no
+    // active session yet to bootstrap as admin. That happens on their first
+    // signIn() after confirming, via checkIsAdminOrBootstrap() above.
+    if (data.user && !data.session) {
+      return { error: null, needsEmailConfirmation: true };
     }
 
-    return { error: null };
+    return { error: null, needsEmailConfirmation: false };
   };
 
   const signIn = async (email: string, password: string) => {
