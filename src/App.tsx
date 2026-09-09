@@ -13,6 +13,7 @@ import Cart from "./pages/Cart";
 import Identify from "./pages/Identify";
 import Checkout from "./pages/Checkout";
 import OrderStatus from "./pages/OrderStatus";
+import StripeReturn from "./pages/StripeReturn";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminMenu from "./pages/admin/AdminMenu";
@@ -36,6 +37,7 @@ const App = () => (
                 <Route path="/carrinho" element={<Cart />} />
                 <Route path="/identificar" element={<Identify />} />
                 <Route path="/finalizar" element={<Checkout />} />
+                <Route path="/pedido/stripe" element={<StripeReturn />} />
                 <Route path="/pedido/:id" element={<OrderStatus />} />
 
                 <Route path="/admin/login" element={<AdminLogin />} />

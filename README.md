@@ -5,11 +5,12 @@ cardápio com carrinho/checkout e painel administrativo.
 
 ## Setup
 
-1. **Banco**: aplique `supabase/migrations/20260909000000_porks_schema.sql` no
-   projeto Supabase (`supabase db push` ou SQL Editor). Ela cria o schema,
-   as políticas de RLS, o bucket `porks-images`, as funções
-   `create_order` / `find_customer_by_phone` / `is_store_open_at` e dados de
-   exemplo do cardápio.
+1. **Banco**: aplique as migrações em `supabase/migrations/` **em ordem** no
+   projeto Supabase (`supabase db push` ou colando cada uma no SQL Editor,
+   uma de cada vez, na ordem dos nomes). Elas criam o schema, as políticas de
+   RLS, o bucket `porks-images`, as funções `create_order` /
+   `find_customer_by_phone` / `is_store_open_at` / `quote_order` e o cardápio
+   real do Porks Santa Maria.
 2. **Variáveis de ambiente**: copie `.env.example` para `.env` e preencha
    `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` (chave anon).
 3. **Primeiro admin**: acesse `/admin/login` e use a aba "Criar admin". Ela só
@@ -21,6 +22,40 @@ cardápio com carrinho/checkout e painel administrativo.
 
 Preços, taxa de entrega, desconto e horário são sempre recalculados no backend
 pela função `create_order` — o cliente só envia produto, variação e quantidade.
+
+## Pagamento online (Stripe)
+
+Pix e cartão de crédito passam pelo Stripe Checkout. O fluxo é: o backend
+calcula o valor exato (`quote_order`, nunca confia no valor do navegador),
+abre uma sessão do Stripe Checkout para esse valor, e só cria o pedido de
+verdade quando o Stripe confirma o pagamento via webhook — nunca antes disso.
+
+Para ativar com uma conta Stripe real:
+
+1. Crie/acesse sua conta em [dashboard.stripe.com](https://dashboard.stripe.com).
+   Para testar sem cobrar de verdade, use o modo **Test mode** (chaves
+   começam com `sk_test_`/`pk_test_`); para produção, o modo **Live**.
+2. Em **Developers → API keys**, copie a **Secret key**.
+3. No Vercel, em **Settings → Environment Variables**, adicione (sem prefixo
+   `VITE_` — essas nunca vão para o navegador):
+   - `STRIPE_SECRET_KEY`
+   - `SUPABASE_URL` (mesma URL do projeto Supabase)
+   - `SUPABASE_SERVICE_ROLE_KEY` (Supabase → Settings → API → **service_role
+     key** — nunca a publishable/anon)
+4. Faça um deploy (ou redeploy) para essas variáveis entrarem em vigor.
+5. Em **Developers → Webhooks** no Stripe, clique **Add endpoint**:
+   - URL: `https://seu-dominio.vercel.app/api/stripe-webhook`
+   - Evento: `checkout.session.completed`
+   - Copie o **Signing secret** (`whsec_...`) gerado e adicione no Vercel como
+     `STRIPE_WEBHOOK_SECRET`, depois redeploy de novo.
+6. Se sua conta Stripe suportar Pix (recurso regional para contas Brasil),
+   ele aparece automaticamente na tela do Stripe Checkout quando o cliente
+   escolhe "Pix" no site.
+
+Sem essas variáveis configuradas, o checkout com Pix/cartão mostra um erro
+amigável ao cliente ("não foi possível iniciar o pagamento") em vez de
+quebrar — pagamento na entrega/retirada (dinheiro, cartão na maquininha)
+continua funcionando normalmente, sem depender do Stripe.
 
 ## Project info
 

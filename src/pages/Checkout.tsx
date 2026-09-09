@@ -168,6 +168,33 @@ const Checkout = () => {
       notes: notes || null,
     };
 
+    if (payOnline) {
+      // Pix/card go through Stripe: the order itself is only created once
+      // Stripe confirms the payment (webhook), so the cart stays intact in
+      // case the customer cancels and lands back on this page.
+      try {
+        const response = await fetch("/api/create-checkout-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ payload }),
+        });
+        const result = await response.json();
+
+        if (!response.ok || !result.url) {
+          const code = Object.keys(ERROR_MESSAGES).find((key) => (result.error ?? "").includes(key));
+          toast.error(code ? ERROR_MESSAGES[code] : "Não foi possível iniciar o pagamento. Tente novamente.");
+          setSubmitting(false);
+          return;
+        }
+
+        window.location.href = result.url;
+      } catch {
+        toast.error("Não foi possível iniciar o pagamento. Tente novamente.");
+        setSubmitting(false);
+      }
+      return;
+    }
+
     const { data, error } = await supabase.rpc("create_order", { payload });
     setSubmitting(false);
 

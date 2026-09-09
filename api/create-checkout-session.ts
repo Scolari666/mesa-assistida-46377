@@ -55,60 +55,66 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const priced = quote as Quote;
   const stripe = new Stripe(stripeSecretKey);
 
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = priced.items.map((item) => ({
-    price_data: {
-      currency: "brl",
-      product_data: {
-        name: item.variation_name ? `${item.product_name} (${item.variation_name})` : item.product_name,
-      },
-      unit_amount: Math.round(item.unit_price * 100),
-    },
-    quantity: item.quantity,
-  }));
-
-  if (priced.delivery_fee > 0) {
-    lineItems.push({
+  try {
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = priced.items.map((item) => ({
       price_data: {
         currency: "brl",
-        product_data: { name: "Taxa de entrega" },
-        unit_amount: Math.round(priced.delivery_fee * 100),
+        product_data: {
+          name: item.variation_name ? `${item.product_name} (${item.variation_name})` : item.product_name,
+        },
+        unit_amount: Math.round(item.unit_price * 100),
       },
-      quantity: 1,
+      quantity: item.quantity,
+    }));
+
+    if (priced.delivery_fee > 0) {
+      lineItems.push({
+        price_data: {
+          currency: "brl",
+          product_data: { name: "Taxa de entrega" },
+          unit_amount: Math.round(priced.delivery_fee * 100),
+        },
+        quantity: 1,
+      });
+    }
+
+    const discounts: Stripe.Checkout.SessionCreateParams.Discount[] = [];
+    if (priced.discount_amount > 0) {
+      const coupon = await stripe.coupons.create({
+        amount_off: Math.round(priced.discount_amount * 100),
+        currency: "brl",
+        duration: "once",
+        name: "Desconto pagamento online",
+      });
+      discounts.push({ coupon: coupon.id });
+    }
+
+    const origin = (req.headers.origin as string) || `https://${req.headers.host}`;
+    const paymentMethodTypes: Stripe.Checkout.SessionCreateParams.PaymentMethodType[] =
+      priced.payment_method === "pix" ? ["pix"] : ["card"];
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: paymentMethodTypes,
+      line_items: lineItems,
+      discounts: discounts.length ? discounts : undefined,
+      success_url: `${origin}/pedido/stripe?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/finalizar`,
     });
+
+    const { error: intentError } = await supabase
+      .from("stripe_checkout_intents")
+      .insert({ checkout_session_id: session.id, payload });
+
+    if (intentError) {
+      console.error("Failed to store stripe_checkout_intents row", intentError);
+      res.status(500).json({ error: "COULD_NOT_TRACK_SESSION" });
+      return;
+    }
+
+    res.status(200).json({ url: session.url });
+  } catch (err) {
+    console.error("Stripe checkout session creation failed", err);
+    res.status(502).json({ error: "STRIPE_REQUEST_FAILED" });
   }
-
-  const discounts: Stripe.Checkout.SessionCreateParams.Discount[] = [];
-  if (priced.discount_amount > 0) {
-    const coupon = await stripe.coupons.create({
-      amount_off: Math.round(priced.discount_amount * 100),
-      currency: "brl",
-      duration: "once",
-      name: "Desconto pagamento online",
-    });
-    discounts.push({ coupon: coupon.id });
-  }
-
-  const origin = (req.headers.origin as string) || `https://${req.headers.host}`;
-  const paymentMethodTypes: Stripe.Checkout.SessionCreateParams.PaymentMethodType[] =
-    priced.payment_method === "pix" ? ["pix"] : ["card"];
-
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    payment_method_types: paymentMethodTypes,
-    line_items: lineItems,
-    discounts: discounts.length ? discounts : undefined,
-    success_url: `${origin}/pedido/stripe?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/finalizar`,
-  });
-
-  const { error: intentError } = await supabase
-    .from("stripe_checkout_intents")
-    .insert({ checkout_session_id: session.id, payload });
-
-  if (intentError) {
-    res.status(500).json({ error: "COULD_NOT_TRACK_SESSION" });
-    return;
-  }
-
-  res.status(200).json({ url: session.url });
 }
