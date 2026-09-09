@@ -14,6 +14,7 @@ export const FeaturedMenu = () => {
       .from("products")
       .select("*")
       .eq("active", true)
+      .order("is_featured", { ascending: false })
       .order("sort_order", { ascending: true })
       .limit(6)
       .then(({ data }) => setProducts(data ?? []));

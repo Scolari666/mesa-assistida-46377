@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, ArrowUp, ArrowDown, Pencil, Check, X } from "lucide-react";
+import { Plus, Trash2, ArrowUp, ArrowDown, Pencil, Check, X, Star } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { Category, Product, Addon } from "@/types/menu";
@@ -108,6 +108,11 @@ const AdminMenu = () => {
     fetchAll();
   };
 
+  const toggleProductFeatured = async (product: Product) => {
+    await supabase.from("products").update({ is_featured: !product.is_featured }).eq("id", product.id);
+    fetchAll();
+  };
+
   const addAddon = async () => {
     const price = Number(newAddonPrice);
     if (!newAddonName.trim() || !newAddonPrice || Number.isNaN(price)) {
@@ -185,7 +190,9 @@ const AdminMenu = () => {
 
         <TabsContent value="products">
           <div className="flex justify-between items-center mb-4">
-            <p className="text-sm text-muted-foreground">{products.length} item(ns) cadastrado(s)</p>
+            <p className="text-sm text-muted-foreground">
+              {products.length} item(ns) cadastrado(s) · clique na estrela para exibir na home
+            </p>
             <Button
               onClick={() => {
                 setEditingProduct(null);
@@ -216,6 +223,7 @@ const AdminMenu = () => {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold">{product.name}</span>
                     {product.is_combo && <Badge className="bg-primary text-primary-foreground">Combo</Badge>}
+                    {product.is_featured && <Badge className="bg-amber-500 text-black">Destaque</Badge>}
                     {!product.active && <Badge variant="outline">Inativo</Badge>}
                   </div>
                   <p className="text-sm text-muted-foreground">
@@ -230,6 +238,22 @@ const AdminMenu = () => {
                     )}
                   </p>
                 </div>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => toggleProductFeatured(product)}
+                  aria-label={
+                    product.is_featured
+                      ? `Remover ${product.name} do destaque`
+                      : `Destacar ${product.name} na home`
+                  }
+                  title="Exibir na home (Cardápio em Destaque)"
+                >
+                  <Star
+                    className={`h-4 w-4 ${product.is_featured ? "fill-amber-500 text-amber-500" : ""}`}
+                  />
+                </Button>
 
                 <Switch checked={product.active} onCheckedChange={() => toggleProductActive(product)} />
 

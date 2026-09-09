@@ -130,6 +130,7 @@ export type Database = {
           promo_price: number | null
           image_url: string | null
           is_combo: boolean
+          is_featured: boolean
           active: boolean
           sort_order: number
           created_at: string
@@ -144,6 +145,7 @@ export type Database = {
           promo_price?: number | null
           image_url?: string | null
           is_combo?: boolean
+          is_featured?: boolean
           active?: boolean
           sort_order?: number
           created_at?: string
@@ -158,6 +160,7 @@ export type Database = {
           promo_price?: number | null
           image_url?: string | null
           is_combo?: boolean
+          is_featured?: boolean
           active?: boolean
           sort_order?: number
           created_at?: string
