@@ -7,12 +7,18 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, Clock, Store, MapPin } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 
+interface OrderItemAddon {
+  name: string;
+  quantity: number;
+}
+
 interface OrderItemResult {
   product_name: string;
   variation_name: string | null;
   quantity: number;
   unit_price: number;
   line_total: number;
+  addons?: OrderItemAddon[] | null;
 }
 
 interface OrderResult {
@@ -109,6 +115,11 @@ const OrderStatus = () => {
                       <span>
                         {item.quantity}x {item.product_name}
                         {item.variation_name ? ` (${item.variation_name})` : ""}
+                        {item.addons && item.addons.length > 0 && (
+                          <span className="block text-muted-foreground text-xs">
+                            {item.addons.map((a) => `${a.quantity}x ${a.name}`).join(", ")}
+                          </span>
+                        )}
                       </span>
                       <span className="whitespace-nowrap">{formatCurrency(Number(item.line_total))}</span>
                     </li>

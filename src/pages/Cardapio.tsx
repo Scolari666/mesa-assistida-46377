@@ -8,26 +8,25 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, ShoppingCart } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
-import { Category, Product, ProductVariation, effectivePrice, hasDiscount } from "@/types/menu";
+import { Category, ProductWithVariations, effectivePrice, hasDiscount } from "@/types/menu";
 import { useCart } from "@/contexts/CartContext";
-import { VariationDialog } from "@/components/menu/VariationDialog";
+import { ProductOptionsDialog } from "@/components/menu/ProductOptionsDialog";
 import { isStoreOpen, type BusinessHours } from "@/lib/businessHours";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 
-type ProductWithVariations = Product & { product_variations: ProductVariation[] };
 type CategoryWithProducts = Category & { products: ProductWithVariations[] };
 
 const Cardapio = () => {
   const [categories, setCategories] = useState<CategoryWithProducts[]>([]);
   const [loading, setLoading] = useState(true);
-  const [variationProduct, setVariationProduct] = useState<ProductWithVariations | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<ProductWithVariations | null>(null);
   const { addItem, itemCount, subtotal } = useCart();
   const { settings } = useStoreSettings();
 
   useEffect(() => {
     supabase
       .from("categories")
-      .select("*, products(*, product_variations(*))")
+      .select("*, products(*, product_variations(*), product_addons(max_quantity, sort_order, addons(*)))")
       .eq("active", true)
       .order("sort_order", { ascending: true })
       .then(({ data }) => {
@@ -48,9 +47,10 @@ const Cardapio = () => {
   }, [settings]);
 
   const handleAdd = (product: ProductWithVariations) => {
-    const activeVariations = product.product_variations.filter((v) => v.active);
-    if (activeVariations.length > 0) {
-      setVariationProduct(product);
+    const hasVariations = product.product_variations.some((v) => v.active);
+    const hasAddons = product.product_addons.length > 0;
+    if (hasVariations || hasAddons) {
+      setSelectedProduct(product);
       return;
     }
     addItem({
@@ -60,6 +60,7 @@ const Cardapio = () => {
       unitPrice: effectivePrice(product),
       variationId: null,
       variationName: null,
+      addons: [],
     });
   };
 
@@ -179,10 +180,10 @@ const Cardapio = () => {
         )}
       </div>
 
-      <VariationDialog
-        product={variationProduct}
-        open={!!variationProduct}
-        onOpenChange={(open) => !open && setVariationProduct(null)}
+      <ProductOptionsDialog
+        product={selectedProduct}
+        open={!!selectedProduct}
+        onOpenChange={(open) => !open && setSelectedProduct(null)}
       />
     </>
   );

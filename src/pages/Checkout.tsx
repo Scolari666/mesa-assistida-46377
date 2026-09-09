@@ -164,6 +164,7 @@ const Checkout = () => {
         variation_id: item.variationId,
         quantity: item.quantity,
         notes: item.notes ?? null,
+        addons: item.addons.map((a) => ({ addon_id: a.addonId, quantity: a.quantity })),
       })),
       notes: notes || null,
     };

@@ -30,6 +30,69 @@ export type Database = {
         }
         Relationships: []
       }
+      addons: {
+        Row: {
+          id: string
+          name: string
+          price: number
+          active: boolean
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          price: number
+          active?: boolean
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          price?: number
+          active?: boolean
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      product_addons: {
+        Row: {
+          product_id: string
+          addon_id: string
+          max_quantity: number
+          sort_order: number
+        }
+        Insert: {
+          product_id: string
+          addon_id: string
+          max_quantity?: number
+          sort_order?: number
+        }
+        Update: {
+          product_id?: string
+          addon_id?: string
+          max_quantity?: number
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_addons_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_addons_addon_id_fkey"
+            columns: ["addon_id"]
+            isOneToOne: false
+            referencedRelation: "addons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           id: string
@@ -461,6 +524,7 @@ export type Database = {
           quantity: number
           line_total: number
           notes: string | null
+          addons: Json | null
         }
         Insert: {
           id?: string
@@ -473,6 +537,7 @@ export type Database = {
           quantity: number
           line_total: number
           notes?: string | null
+          addons?: Json | null
         }
         Update: {
           id?: string
@@ -485,6 +550,7 @@ export type Database = {
           quantity?: number
           line_total?: number
           notes?: string | null
+          addons?: Json | null
         }
         Relationships: [
           {

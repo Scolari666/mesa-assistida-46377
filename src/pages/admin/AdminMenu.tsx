@@ -21,26 +21,32 @@ import {
 import { Plus, Trash2, ArrowUp, ArrowDown, Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
-import { Category, Product } from "@/types/menu";
+import { Category, Product, Addon } from "@/types/menu";
 
 const AdminMenu = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [addons, setAddons] = useState<Addon[]>([]);
   const [newCategory, setNewCategory] = useState("");
   const [editingCategory, setEditingCategory] = useState<{ id: string; name: string } | null>(null);
+  const [newAddonName, setNewAddonName] = useState("");
+  const [newAddonPrice, setNewAddonPrice] = useState("");
+  const [editingAddon, setEditingAddon] = useState<{ id: string; name: string; price: string } | null>(null);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<
-    { type: "category" | "product"; id: string; name: string } | null
+    { type: "category" | "product" | "addon"; id: string; name: string } | null
   >(null);
 
   const fetchAll = useCallback(async () => {
-    const [{ data: cats }, { data: prods }] = await Promise.all([
+    const [{ data: cats }, { data: prods }, { data: addonRows }] = await Promise.all([
       supabase.from("categories").select("*").order("sort_order"),
       supabase.from("products").select("*").order("sort_order"),
+      supabase.from("addons").select("*").order("sort_order"),
     ]);
     setCategories(cats ?? []);
     setProducts(prods ?? []);
+    setAddons(addonRows ?? []);
   }, []);
 
   useEffect(() => {
@@ -102,9 +108,53 @@ const AdminMenu = () => {
     fetchAll();
   };
 
+  const addAddon = async () => {
+    const price = Number(newAddonPrice);
+    if (!newAddonName.trim() || !newAddonPrice || Number.isNaN(price)) {
+      toast.error("Informe nome e preço do adicional.");
+      return;
+    }
+    const { error } = await supabase
+      .from("addons")
+      .insert({ name: newAddonName.trim(), price, sort_order: addons.length + 1 });
+    if (error) {
+      toast.error("Erro ao criar adicional.");
+      return;
+    }
+    setNewAddonName("");
+    setNewAddonPrice("");
+    toast.success("Adicional criado!");
+    fetchAll();
+  };
+
+  const saveAddonEdit = async () => {
+    if (!editingAddon) return;
+    const price = Number(editingAddon.price);
+    if (!editingAddon.name.trim() || Number.isNaN(price)) {
+      toast.error("Nome ou preço inválido.");
+      return;
+    }
+    const { error } = await supabase
+      .from("addons")
+      .update({ name: editingAddon.name.trim(), price })
+      .eq("id", editingAddon.id);
+    if (error) {
+      toast.error("Erro ao salvar adicional.");
+      return;
+    }
+    setEditingAddon(null);
+    fetchAll();
+  };
+
+  const toggleAddonActive = async (addon: Addon) => {
+    await supabase.from("addons").update({ active: !addon.active }).eq("id", addon.id);
+    fetchAll();
+  };
+
   const confirmDelete = async () => {
     if (!deleteTarget) return;
-    const table = deleteTarget.type === "category" ? "categories" : "products";
+    const table =
+      deleteTarget.type === "category" ? "categories" : deleteTarget.type === "addon" ? "addons" : "products";
     const { error } = await supabase.from(table).delete().eq("id", deleteTarget.id);
     if (error) {
       toast.error("Erro ao excluir.");
@@ -130,6 +180,7 @@ const AdminMenu = () => {
         <TabsList className="mb-6">
           <TabsTrigger value="products">Produtos e combos</TabsTrigger>
           <TabsTrigger value="categories">Categorias</TabsTrigger>
+          <TabsTrigger value="addons">Adicionais</TabsTrigger>
         </TabsList>
 
         <TabsContent value="products">
@@ -289,6 +340,90 @@ const AdminMenu = () => {
             ))}
           </div>
         </TabsContent>
+
+        <TabsContent value="addons">
+          <div className="flex gap-2 mb-6 max-w-md">
+            <Input
+              placeholder="Nome do adicional"
+              value={newAddonName}
+              onChange={(e) => setNewAddonName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addAddon()}
+            />
+            <Input
+              type="number"
+              step="0.01"
+              placeholder="Preço"
+              className="w-28"
+              value={newAddonPrice}
+              onChange={(e) => setNewAddonPrice(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addAddon()}
+            />
+            <Button onClick={addAddon}>
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <p className="text-sm text-muted-foreground mb-4">
+            Cadastre os adicionais aqui e depois vincule a cada produto (na edição do produto) com sua
+            quantidade máxima.
+          </p>
+
+          <div className="space-y-2 max-w-2xl">
+            {addons.map((addon) =>
+              editingAddon?.id === addon.id ? (
+                <div key={addon.id} className="flex items-center gap-2 bg-card border border-border rounded-lg p-3">
+                  <Input
+                    value={editingAddon.name}
+                    onChange={(e) => setEditingAddon({ ...editingAddon, name: e.target.value })}
+                    className="flex-1"
+                  />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={editingAddon.price}
+                    onChange={(e) => setEditingAddon({ ...editingAddon, price: e.target.value })}
+                    className="w-24"
+                  />
+                  <Button variant="ghost" size="icon" onClick={saveAddonEdit}>
+                    <Check className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => setEditingAddon(null)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div
+                  key={addon.id}
+                  className="flex items-center gap-3 bg-card border border-border rounded-lg p-3"
+                >
+                  <span className="flex-1 font-semibold">{addon.name}</span>
+                  <span className="text-sm text-primary font-semibold">{formatCurrency(Number(addon.price))}</span>
+                  {!addon.active && <Badge variant="outline">Inativo</Badge>}
+                  <Switch checked={addon.active} onCheckedChange={() => toggleAddonActive(addon)} />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() =>
+                      setEditingAddon({ id: addon.id, name: addon.name, price: String(addon.price) })
+                    }
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setDeleteTarget({ type: "addon", id: addon.id, name: addon.name })}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              )
+            )}
+            {addons.length === 0 && (
+              <p className="text-muted-foreground text-sm">Nenhum adicional cadastrado ainda.</p>
+            )}
+          </div>
+        </TabsContent>
       </Tabs>
 
       <ProductDialog
@@ -297,6 +432,7 @@ const AdminMenu = () => {
         product={editingProduct}
         categories={categories}
         allProducts={products}
+        allAddons={addons}
         onSaved={fetchAll}
       />
 
@@ -307,6 +443,8 @@ const AdminMenu = () => {
             <AlertDialogDescription>
               {deleteTarget?.type === "category"
                 ? "Os produtos dessa categoria ficarão sem categoria."
+                : deleteTarget?.type === "addon"
+                ? "O adicional sai de todos os produtos onde estava disponível. Pedidos antigos mantêm o histórico."
                 : "O produto sai do cardápio. Pedidos antigos mantêm o histórico."}
             </AlertDialogDescription>
           </AlertDialogHeader>

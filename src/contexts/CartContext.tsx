@@ -1,5 +1,12 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 
+export interface CartAddonSelection {
+  addonId: string;
+  name: string;
+  unitPrice: number;
+  quantity: number;
+}
+
 export interface CartItem {
   key: string;
   productId: string;
@@ -9,6 +16,7 @@ export interface CartItem {
   quantity: number;
   variationId: string | null;
   variationName: string | null;
+  addons: CartAddonSelection[];
   notes?: string;
 }
 
@@ -27,8 +35,13 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 const STORAGE_KEY = "porks_cart";
 
-function itemKey(productId: string, variationId: string | null) {
-  return variationId ? `${productId}::${variationId}` : productId;
+function itemKey(productId: string, variationId: string | null, addons: CartAddonSelection[]) {
+  const addonsSignature = addons
+    .slice()
+    .sort((a, b) => a.addonId.localeCompare(b.addonId))
+    .map((a) => `${a.addonId}:${a.quantity}`)
+    .join(",");
+  return [productId, variationId ?? "", addonsSignature].join("::");
 }
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
@@ -50,7 +63,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }, [items]);
 
   const addItem: CartContextType["addItem"] = (item, quantity = 1) => {
-    const key = itemKey(item.productId, item.variationId);
+    const key = itemKey(item.productId, item.variationId, item.addons);
     setItems((prev) => {
       const existing = prev.find((i) => i.key === key);
       if (existing) {

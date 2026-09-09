@@ -94,6 +94,11 @@ const Cart = () => {
                       {item.variationName && (
                         <p className="text-sm text-muted-foreground">{item.variationName}</p>
                       )}
+                      {item.addons.length > 0 && (
+                        <p className="text-sm text-muted-foreground">
+                          {item.addons.map((a) => `${a.quantity}x ${a.name}`).join(", ")}
+                        </p>
+                      )}
                       <p className="text-primary font-bold mt-1">
                         {formatCurrency(item.unitPrice * item.quantity)}
                       </p>
@@ -185,6 +190,7 @@ const Cart = () => {
                                   unitPrice: effectivePrice(product),
                                   variationId: null,
                                   variationName: null,
+                                  addons: [],
                                 })
                               }
                             >

@@ -275,15 +275,23 @@ const AdminOrders = () => {
                 <div className="border-t border-border pt-3">
                   <p className="font-semibold mb-2">Itens</p>
                   <ul className="space-y-1">
-                    {selectedItems.map((item) => (
-                      <li key={item.id} className="flex justify-between gap-3">
-                        <span>
-                          {item.quantity}x {item.product_name}
-                          {item.variation_name ? ` (${item.variation_name})` : ""}
-                        </span>
-                        <span className="whitespace-nowrap">{formatCurrency(Number(item.line_total))}</span>
-                      </li>
-                    ))}
+                    {selectedItems.map((item) => {
+                      const addons = (item.addons as { name: string; quantity: number }[] | null) ?? [];
+                      return (
+                        <li key={item.id} className="flex justify-between gap-3">
+                          <span>
+                            {item.quantity}x {item.product_name}
+                            {item.variation_name ? ` (${item.variation_name})` : ""}
+                            {addons.length > 0 && (
+                              <span className="block text-muted-foreground text-xs">
+                                {addons.map((a) => `${a.quantity}x ${a.name}`).join(", ")}
+                              </span>
+                            )}
+                          </span>
+                          <span className="whitespace-nowrap">{formatCurrency(Number(item.line_total))}</span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
 

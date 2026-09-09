@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2, Plus, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
-import { Category, Product, ProductVariation } from "@/types/menu";
+import { Category, Product, ProductVariation, Addon } from "@/types/menu";
 import { formatCurrency } from "@/lib/format";
 
 interface VariationDraft {
@@ -24,12 +24,18 @@ interface VariationDraft {
   price: string;
 }
 
+interface AddonLinkDraft {
+  addonId: string;
+  maxQuantity: string;
+}
+
 interface ProductDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   product: Product | null;
   categories: Category[];
   allProducts: Product[];
+  allAddons: Addon[];
   onSaved: () => void;
 }
 
@@ -39,6 +45,7 @@ export const ProductDialog = ({
   product,
   categories,
   allProducts,
+  allAddons,
   onSaved,
 }: ProductDialogProps) => {
   const [name, setName] = useState("");
@@ -52,6 +59,7 @@ export const ProductDialog = ({
   const [variations, setVariations] = useState<VariationDraft[]>([]);
   const [suggestionIds, setSuggestionIds] = useState<string[]>([]);
   const [comboItemIds, setComboItemIds] = useState<string[]>([]);
+  const [addonLinks, setAddonLinks] = useState<AddonLinkDraft[]>([]);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -71,6 +79,7 @@ export const ProductDialog = ({
       setVariations([]);
       setSuggestionIds([]);
       setComboItemIds([]);
+      setAddonLinks([]);
       return;
     }
 
@@ -96,6 +105,14 @@ export const ProductDialog = ({
       .select("item_product_id")
       .eq("combo_id", product.id)
       .then(({ data }) => setComboItemIds((data ?? []).map((r) => r.item_product_id)));
+
+    supabase
+      .from("product_addons")
+      .select("addon_id, max_quantity")
+      .eq("product_id", product.id)
+      .then(({ data }) =>
+        setAddonLinks((data ?? []).map((r) => ({ addonId: r.addon_id, maxQuantity: String(r.max_quantity) })))
+      );
   }, [open, product, categories]);
 
   const handleUpload = async (file: File) => {
@@ -196,6 +213,19 @@ export const ProductDialog = ({
       );
     }
 
+    const validAddonLinks = addonLinks.filter((link) => Number(link.maxQuantity) > 0);
+    await supabase.from("product_addons").delete().eq("product_id", productId);
+    if (validAddonLinks.length) {
+      await supabase.from("product_addons").insert(
+        validAddonLinks.map((link, index) => ({
+          product_id: productId,
+          addon_id: link.addonId,
+          max_quantity: Number(link.maxQuantity),
+          sort_order: index,
+        }))
+      );
+    }
+
     setSaving(false);
     toast.success(product ? "Produto atualizado!" : "Produto criado!");
     onSaved();
@@ -204,6 +234,14 @@ export const ProductDialog = ({
 
   const toggleId = (list: string[], setList: (next: string[]) => void, id: string) => {
     setList(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
+  };
+
+  const toggleAddonLink = (addonId: string) => {
+    setAddonLinks((links) =>
+      links.some((l) => l.addonId === addonId)
+        ? links.filter((l) => l.addonId !== addonId)
+        : [...links, { addonId, maxQuantity: "4" }]
+    );
   };
 
   const otherProducts = allProducts.filter((p) => p.id !== product?.id);
@@ -410,6 +448,53 @@ export const ProductDialog = ({
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <Label>Adicionais disponíveis</Label>
+            {allAddons.length === 0 ? (
+              <p className="text-sm text-muted-foreground mt-2">
+                Nenhum adicional cadastrado ainda. Crie na aba "Adicionais".
+              </p>
+            ) : (
+              <div className="space-y-2 mt-2">
+                {allAddons.map((addon) => {
+                  const link = addonLinks.find((l) => l.addonId === addon.id);
+                  return (
+                    <div key={addon.id} className="flex items-center gap-3">
+                      <button
+                        onClick={() => toggleAddonLink(addon.id)}
+                        className={`flex-1 text-left px-3 py-1.5 rounded-md border text-sm transition-colors ${
+                          link
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border hover:border-primary/50"
+                        }`}
+                      >
+                        {addon.name} · {formatCurrency(Number(addon.price))}
+                      </button>
+                      {link && (
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs text-muted-foreground whitespace-nowrap">Máx</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            className="w-16"
+                            value={link.maxQuantity}
+                            onChange={(e) =>
+                              setAddonLinks((links) =>
+                                links.map((l) =>
+                                  l.addonId === addon.id ? { ...l, maxQuantity: e.target.value } : l
+                                )
+                              )
+                            }
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
