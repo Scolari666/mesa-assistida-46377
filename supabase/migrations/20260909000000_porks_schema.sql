@@ -9,8 +9,20 @@
 -- ---------------------------------------------------------------------------
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user();
-DROP TRIGGER IF EXISTS update_menu_items_updated_at ON public.menu_items;
-DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
+
+-- DROP TRIGGER ... ON <table> still errors when <table> itself doesn't exist
+-- (IF EXISTS only covers the trigger name), so on a brand-new project these
+-- two must be skipped rather than run unconditionally.
+DO $$
+BEGIN
+  IF to_regclass('public.menu_items') IS NOT NULL THEN
+    EXECUTE 'DROP TRIGGER IF EXISTS update_menu_items_updated_at ON public.menu_items';
+  END IF;
+  IF to_regclass('public.profiles') IS NOT NULL THEN
+    EXECUTE 'DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles';
+  END IF;
+END $$;
+
 DROP FUNCTION IF EXISTS public.update_updated_at_column();
 
 DROP TABLE IF EXISTS public.calls CASCADE;
